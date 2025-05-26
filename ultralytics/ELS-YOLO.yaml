@@ -1,0 +1,54 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# YOLO11 object detection model with P3-P5 outputs. For Usage examples see https://docs.ultralytics.com/tasks/detect
+
+# Parameters
+nc: 80 # number of classes
+scales: # model compound scaling constants, i.e. 'model=yolo11n.yaml' will call yolo11.yaml with scale 'n'
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024] # summary: 319 layers, 2624080 parameters, 2624064 gradients, 6.6 GFLOPs
+  s: [0.50, 0.50, 1024] # summary: 319 layers, 9458752 parameters, 9458736 gradients, 21.7 GFLOPs
+  m: [0.50, 1.00, 512] # summary: 409 layers, 20114688 parameters, 20114672 gradients, 68.5 GFLOPs
+  l: [1.00, 1.00, 512] # summary: 631 layers, 25372160 parameters, 25372144 gradients, 87.6 GFLOPs
+  x: [1.00, 1.50, 512] # summary: 631 layers, 56966176 parameters, 56966160 gradients, 196.0 GFLOPs
+
+# YOLO11n backbone
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, HGStem, [32, 48]]                          # 160*160*48  0
+  - [-1, 6, ERBlock, [48, 128, 3]]                     # 160*160*128  1
+
+  - [-1, 1, DWConv, [128, 3, 2, 1, False]]             # 80*80*128  2
+  - [-1, 6, ERBlock, [96, 512, 3]]                     # 80*80*512  3
+
+  - [-1, 1, DWConv, [512, 3, 2, 1, False]]             # 40*40*512  4
+  - [-1, 6, ERBlock, [192, 1024, 3, True, False]]      # 40*40*1024  5
+  - [-1, 6, ERBlock, [192, 1024, 3, True, True]]       # 40*40*1024  6
+  - [-1, 6, ERBlock, [192, 1024, 3, True, True]]       # 40*40*1024  7
+
+  - [-1, 1, DWConv, [1024, 3, 2, 1, False]]            # 20*20*1024  8
+  - [-1, 6, ERBlock, [384, 2048, 3, True, False]]      # 20*20*2048  9
+  - [-1, 1, SPPF, [1024, 5]]                           # 20*20*1024  10
+  - [-1, 2, C2PSA, [1024]]                             # 20*20*1024  11
+
+# YOLO11n head
+head:
+  - [-1, 1, CA_LFSPN, []]  # 12
+  - [-1, 1, nn.Conv2d, [256, 1]]  # 13
+  - [-1, 1, nn.ConvTranspose2d, [256, 3, 2, 1, 1]]  # 14
+
+  - [7, 1, CA_LFSPN, []]  # 15
+  - [-1, 1, nn.Conv2d, [256, 1]]  # 16
+  - [14, 1, CA_LFSPN, [8, False]]  # 17
+  - [[-1, -2], 1, Multiply, []]  # 18
+  - [[-1, 14], 1, Add, []]  # 19
+  - [-1, 2, C3k2, [256, False]]  # 20
+
+  - [14, 1, nn.ConvTranspose2d, [256, 3, 2, 1, 1]]  # 21
+  - [3, 1, CA_LFSPN, []]  # 22
+  - [-1, 1, nn.Conv2d, [256, 1]]  # 23
+  - [21, 1, CA_LFSPN, [8, False]]  # 24
+  - [[-1, -2], 1, Multiply, []]  # 25
+  - [[-1, 21], 1, Add, []]  # 26
+  - [-1, 2, C3k2, [256, False]]  # 27
+
+  - [[27, 20, 13], 1, SCSHead, [nc, 128]]
